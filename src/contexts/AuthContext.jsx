@@ -1,111 +1,154 @@
-"use client";
 
-import { createContext, useContext, useState, useEffect } from "react";
+'use client';
+
+import { createContext, useContext, useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 
 const AuthContext = createContext(null);
-
-const STORAGE_KEY = "vivaaham_user";
-
-// Demo users for testing
-const DEMO_USERS = [
-    {
-        id: "1",
-        name: "Rahul Sharma",
-        email: "rahul@example.com",
-        password: "demo123",
-        phone: "+91 98765 43210",
-        brideName: "Priya",
-        groomName: "Arjun",
-        plan: "mangal",
-        role: "admin",
-        modules: [
-            "dashboard", "guests", "venues", "vendors", "food", "decor",
-            "budget", "travel", "gifts", "tasks", "invitations", "team",
-            "timeline", "activity", "itinerary", "reports"
-        ],
-        weddingDate: "2026-03-15",
-    },
-];
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const router = useRouter();
+    const supabase = createClient();
 
     useEffect(() => {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            try {
-                setUser(JSON.parse(stored));
-            } catch { }
-        }
-        setLoading(false);
-    }, []);
-
-    const login = (email, password) => {
-        // Check demo users first
-        const demoUser = DEMO_USERS.find(
-            (u) => u.email === email && u.password === password
-        );
-        if (demoUser) {
-            const { password: _, ...userData } = demoUser;
-            setUser(userData);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
-            return { success: true };
-        }
-
-        // Check localStorage for signed-up users
-        const allUsers = JSON.parse(localStorage.getItem("vivaaham_all_users") || "[]");
-        const found = allUsers.find(
-            (u) => u.email === email && u.password === password
-        );
-        if (found) {
-            const { password: _, ...userData } = found;
-            setUser(userData);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
-            return { success: true };
-        }
-
-        return { success: false, error: "Invalid email or password" };
-    };
-
-    const signup = (data) => {
-        const newUser = {
-            id: Date.now().toString(),
-            name: data.name,
-            email: data.email,
-            phone: data.phone,
-            brideName: data.brideName,
-            groomName: data.groomName,
-            plan: data.plan,
-            role: "admin",
-            modules: [
-                "dashboard", "guests", "venues", "vendors", "food", "decor",
-                "budget", "travel", "gifts", "tasks", "invitations", "team",
-                "timeline", "activity", "itinerary", "reports"
-            ],
-            weddingDate: data.weddingDate || "",
+        // 1. Check active session
+        const initSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                await fetchUserData(session.user);
+            } else {
+                setLoading(false);
+            }
         };
 
-        // Store with password for login
-        const allUsers = JSON.parse(localStorage.getItem("vivaaham_all_users") || "[]");
-        allUsers.push({ ...newUser, password: data.password });
-        localStorage.setItem("vivaaham_all_users", JSON.stringify(allUsers));
+        initSession();
 
-        // Set current user (without password)
-        setUser(newUser);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));
+        // 2. Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            if (session?.user) {
+                if (user?.id !== session.user.id) {
+                    await fetchUserData(session.user);
+                }
+            } else {
+                setUser(null);
+                setLoading(false);
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const fetchUserData = async (authUser) => {
+        try {
+            const [profileRes, memberRes] = await Promise.all([
+                supabase.from('users').select('*').eq('id', authUser.id).single(),
+                supabase.from('wedding_members').select('*').eq('user_id', authUser.id).maybeSingle()
+            ]);
+
+            const profile = profileRes.data;
+            const member = memberRes.data;
+
+            let wedding = null;
+            if (member?.wedding_id) {
+                const { data } = await supabase.from('weddings').select('*').eq('id', member.wedding_id).single();
+                wedding = data;
+            }
+
+            setUser({
+                id: authUser.id,
+                email: authUser.email,
+                name: profile?.name || authUser.user_metadata?.name,
+                phone: profile?.phone,
+                avatar_url: profile?.avatar_url,
+                // Wedding Context
+                role: member?.role || 'viewer',
+                modules: member?.modules || [],
+                weddingId: member?.wedding_id,
+                // Flattened wedding details
+                brideName: wedding?.bride_name || '',
+                groomName: wedding?.groom_name || '',
+                weddingDate: wedding?.wedding_date || '',
+                plan: wedding?.plan || 'mangal',
+            });
+        } catch (error) {
+            console.error('Error fetching user data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const login = async (email, password) => {
+        const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
+
+        if (error) {
+            return { success: false, error: error.message };
+        }
         return { success: true };
     };
 
-    const logout = () => {
+    const signup = async (data) => {
+        try {
+            // 1. SignUp
+            const { data: authData, error: authError } = await supabase.auth.signUp({
+                email: data.email,
+                password: data.password,
+                options: {
+                    data: {
+                        name: data.name,
+                        phone: data.phone, // Store in metadata too as backup
+                    },
+                },
+            });
+
+            if (authError) throw authError;
+
+            if (authData.user && !authData.session) {
+                return { success: true, message: "Please check your email to confirm signup." };
+            }
+
+            if (authData.session) {
+                // 2. Setup Wedding
+                const res = await fetch('/api/weddings/setup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        brideName: data.brideName,
+                        groomName: data.groomName,
+                        weddingDate: data.weddingDate,
+                        plan: data.plan
+                    })
+                });
+
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.error || 'Setup failed');
+
+                // 3. Refresh user data
+                await fetchUserData(authData.user);
+                return { success: true };
+            }
+
+            return { success: false, error: "Unexpected auth state" };
+
+        } catch (error) {
+            console.error("Signup error:", error);
+            return { success: false, error: error.message };
+        }
+    };
+
+    const logout = async () => {
+        await supabase.auth.signOut();
         setUser(null);
-        localStorage.removeItem(STORAGE_KEY);
+        router.push('/login');
     };
 
     const updateUser = (updates) => {
-        const updated = { ...user, ...updates };
-        setUser(updated);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        setUser(prev => ({ ...prev, ...updates }));
     };
 
     return (

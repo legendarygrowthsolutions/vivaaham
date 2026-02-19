@@ -1,32 +1,45 @@
+
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useEvents } from "@/contexts/EventContext";
-import { MOCK_TASKS, MOCK_ACTIVITY, MOCK_NOTIFICATIONS } from "@/lib/mockData";
+import { useDashboardData } from "@/hooks/useDashboardData";
 import {
     Users, CheckCircle, IndianRupee, Clock, AlertCircle, ListChecks,
-    CalendarDays, Activity, TrendingUp, ArrowRight
+    CalendarDays, Activity, ArrowRight
 } from "lucide-react";
 import Link from "next/link";
 
 export default function DashboardPage() {
     const { user } = useAuth();
-
-    const { events, loading } = useEvents();
+    const { events, loading: eventsLoading } = useEvents();
+    const stats = useDashboardData();
 
     // Wedding countdown
-    const weddingDate = user?.weddingDate ? new Date(user.weddingDate) : new Date("2026-03-15");
+    const weddingDate = user?.weddingDate ? new Date(user.weddingDate) : new Date();
     const now = new Date();
-    const diffMs = weddingDate - now;
+    const diffMs = weddingDate.getTime() - now.getTime();
     const daysLeft = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 
-    if (loading) return null;
+    if (eventsLoading || stats.loading) {
+        return <div className="p-6 text-center text-text-muted">Loading dashboard...</div>;
+    }
 
     const upcomingEvents = events.filter((e) => e.status === "upcoming").slice(0, 3);
-    const recentActivity = MOCK_ACTIVITY.slice(0, 5);
-    const overdueTasks = MOCK_TASKS.filter((t) => t.status === "overdue");
-    const pendingTasks = MOCK_TASKS.filter((t) => t.status === "pending" || t.status === "in_progress");
-    const unreadNotifs = MOCK_NOTIFICATIONS.filter((n) => !n.read);
+    const recentActivity = stats.activity;
+    const overdueTasks = stats.alerts.overdueTasks;
+    const unreadNotifs = stats.alerts.unreadNotifs;
+
+    // Calculate percentages
+    const tasksDonePct = stats.tasks.total > 0
+        ? Math.round((stats.tasks.completed / stats.tasks.total) * 100)
+        : 0;
+
+    // Format currency (Lakhs)
+    const formatCurrency = (val) => {
+        if (val >= 100000) return `₹${(val / 100000).toFixed(1)}L`;
+        return `₹${val.toLocaleString('en-IN')}`;
+    };
 
     return (
         <div className="space-y-6 animate-[fadeIn_0.5s_ease]">
@@ -35,7 +48,7 @@ export default function DashboardPage() {
                 <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/[0.06] rounded-full" />
                 <div className="absolute -bottom-16 -left-16 w-52 h-52 bg-white/[0.04] rounded-full" />
                 <div className="relative">
-                    <p className="text-white/70 text-sm mb-1">Wedding of {user?.brideName || "—"} & {user?.groomName || "—"}</p>
+                    <p className="text-white/70 text-sm mb-1">Wedding of {user?.brideName || "Bride"} & {user?.groomName || "Groom"}</p>
                     <h2 className="font-heading text-[clamp(1.6rem,4vw,2.4rem)] font-bold mb-2">
                         {daysLeft} Days To Go! 🎊
                     </h2>
@@ -48,10 +61,38 @@ export default function DashboardPage() {
             {/* Stats Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { icon: Users, label: "Total Guests", value: "847", sub: "623 accepted", color: "text-primary", bg: "bg-primary/[0.06]" },
-                    { icon: CheckCircle, label: "Tasks Done", value: "78%", sub: "50 of 64", color: "text-success", bg: "bg-success/[0.06]" },
-                    { icon: IndianRupee, label: "Budget Used", value: "₹18.2L", sub: "of ₹24.5L", color: "text-accent", bg: "bg-accent/[0.08]" },
-                    { icon: ListChecks, label: "Pending", value: `${pendingTasks.length + overdueTasks.length}`, sub: `${overdueTasks.length} overdue`, color: "text-danger", bg: "bg-danger/[0.06]" },
+                    {
+                        icon: Users,
+                        label: "Total Guests",
+                        value: stats.guests.total,
+                        sub: `${stats.guests.accepted} accepted`,
+                        color: "text-primary",
+                        bg: "bg-primary/[0.06]"
+                    },
+                    {
+                        icon: CheckCircle,
+                        label: "Tasks Done",
+                        value: `${tasksDonePct}%`,
+                        sub: `${stats.tasks.completed} of ${stats.tasks.total}`,
+                        color: "text-success",
+                        bg: "bg-success/[0.06]"
+                    },
+                    {
+                        icon: IndianRupee,
+                        label: "Budget Used",
+                        value: formatCurrency(stats.budget.used),
+                        sub: `of ${formatCurrency(stats.budget.total)}`,
+                        color: "text-accent",
+                        bg: "bg-accent/[0.08]"
+                    },
+                    {
+                        icon: ListChecks,
+                        label: "Pending",
+                        value: stats.tasks.pending + stats.tasks.overdue,
+                        sub: `${stats.tasks.overdue} overdue`,
+                        color: "text-danger",
+                        bg: "bg-danger/[0.06]"
+                    },
                 ].map((stat) => (
                     <div key={stat.label} className="bg-bg-card rounded-xl border border-border-light p-5 hover:shadow-md transition-shadow">
                         <div className={`w-10 h-10 ${stat.bg} rounded-lg flex items-center justify-center mb-3`}>
@@ -75,22 +116,28 @@ export default function DashboardPage() {
                             View All <ArrowRight size={14} />
                         </Link>
                     </div>
-                    <div className="space-y-3">
-                        {upcomingEvents.map((event) => (
-                            <div key={event.id} className="flex items-center gap-3 p-3 bg-bg-alt rounded-lg">
-                                <div className="w-10 h-10 bg-primary/[0.08] rounded-lg flex items-center justify-center text-primary font-heading font-bold text-sm">
-                                    {new Date(event.date).getDate()}
+                    {upcomingEvents.length > 0 ? (
+                        <div className="space-y-3">
+                            {upcomingEvents.map((event) => (
+                                <div key={event.id} className="flex items-center gap-3 p-3 bg-bg-alt rounded-lg">
+                                    <div className="w-10 h-10 bg-primary/[0.08] rounded-lg flex items-center justify-center text-primary font-heading font-bold text-sm">
+                                        {new Date(event.date).getDate()}
+                                    </div>
+                                    <div className="flex-1">
+                                        <span className="font-medium text-sm">{event.name}</span>
+                                        <div className="text-xs text-text-muted">{event.venue || 'No venue set'}</div>
+                                    </div>
+                                    <span className="text-xs text-primary font-medium">
+                                        {new Date(event.date).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}
+                                    </span>
                                 </div>
-                                <div className="flex-1">
-                                    <span className="font-medium text-sm">{event.name}</span>
-                                    <div className="text-xs text-text-muted">{event.venue}</div>
-                                </div>
-                                <span className="text-xs text-primary font-medium">
-                                    {new Date(event.date).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 text-sm text-text-muted">
+                            No upcoming events found.
+                        </div>
+                    )}
                 </div>
 
                 {/* Recent Activity */}
@@ -103,21 +150,27 @@ export default function DashboardPage() {
                             View All <ArrowRight size={14} />
                         </Link>
                     </div>
-                    <div className="space-y-3">
-                        {recentActivity.map((act) => (
-                            <div key={act.id} className="flex items-start gap-3 p-3 bg-bg-alt rounded-lg">
-                                <div className="w-8 h-8 bg-accent/10 rounded-full flex items-center justify-center text-accent font-bold text-xs shrink-0">
-                                    {act.user.charAt(0)}
+                    {recentActivity.length > 0 ? (
+                        <div className="space-y-3">
+                            {recentActivity.map((act) => (
+                                <div key={act.id} className="flex items-start gap-3 p-3 bg-bg-alt rounded-lg">
+                                    <div className="w-8 h-8 bg-accent/10 rounded-full flex items-center justify-center text-accent font-bold text-xs shrink-0">
+                                        {act.user.charAt(0)}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm">
+                                            <strong>{act.user}</strong> {act.action} <strong>{act.target}</strong>
+                                        </p>
+                                        <span className="text-xs text-text-light">{act.time}</span>
+                                    </div>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm">
-                                        <strong>{act.user}</strong> {act.action} <strong>{act.target}</strong>
-                                    </p>
-                                    <span className="text-xs text-text-light">{act.time}</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 text-sm text-text-muted">
+                            No recent activity.
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -136,7 +189,7 @@ export default function DashboardPage() {
                                 </span>
                             </div>
                         ))}
-                        {unreadNotifs.slice(0, 3).map((notif) => (
+                        {unreadNotifs.map((notif) => (
                             <div key={notif.id} className={`flex items-center gap-3 p-3 rounded-lg border ${notif.type === "warning" ? "bg-warning/[0.04] border-warning/10" : "bg-info/[0.04] border-info/10"
                                 }`}>
                                 <AlertCircle size={16} className={notif.type === "warning" ? "text-warning shrink-0" : "text-info shrink-0"} />

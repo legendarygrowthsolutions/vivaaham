@@ -15,10 +15,21 @@ export const metadata = {
     },
 };
 
+export const viewport = {
+    themeColor: "#E91E63",
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false, // Often desired for app-like feel
+};
+
+import { Providers } from "./providers";
+
 export default function RootLayout({ children }) {
     return (
         <html lang="en">
             <head>
+                <link rel="manifest" href="/manifest.json" />
                 <link rel="preconnect" href="https://fonts.googleapis.com" />
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
                 <link
@@ -27,7 +38,11 @@ export default function RootLayout({ children }) {
                 />
                 <link rel="icon" type="image/png" href="/logo.png" />
             </head>
-            <body className="antialiased">{children}</body>
+            <body className="antialiased">
+                <Providers>
+                    {children}
+                </Providers>
+            </body>
         </html>
     );
 }

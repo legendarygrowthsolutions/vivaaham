@@ -16,7 +16,7 @@ import {
 const ICON_MAP = {
     LayoutDashboard, Users, Building2, Handshake, UtensilsCrossed,
     Palette, IndianRupee, Plane, Gift, ListChecks, Mail, UsersRound,
-    Clock, Activity, ScrollText, FileDown,
+    Clock, Activity, ScrollText, FileDown, Settings
 };
 
 export default function DashboardLayout({ children }) {

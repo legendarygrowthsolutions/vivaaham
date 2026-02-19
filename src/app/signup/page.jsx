@@ -36,15 +36,23 @@ export default function SignupPage() {
         return true;
     };
 
-    const handleNext = () => {
+    const handleNext = async () => {
         if (step === 3) {
             // Process dummy payment
             setLoading(true);
-            setTimeout(() => {
-                signup(form);
-                setStep(4);
+            try {
+                const res = await signup(form);
+                if (res.success) {
+                    setStep(4);
+                } else {
+                    alert(res.error || "Signup failed. Please try again.");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("An unexpected error occurred.");
+            } finally {
                 setLoading(false);
-            }, 2000);
+            }
             return;
         }
         setStep(step + 1);
@@ -72,10 +80,10 @@ export default function SignupPage() {
                         <div key={s} className="flex items-center gap-2">
                             <div
                                 className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${i < step
-                                        ? "bg-success text-white"
-                                        : i === step
-                                            ? "bg-gradient-to-r from-primary to-accent text-white scale-110"
-                                            : "bg-border text-text-muted"
+                                    ? "bg-success text-white"
+                                    : i === step
+                                        ? "bg-gradient-to-r from-primary to-accent text-white scale-110"
+                                        : "bg-border text-text-muted"
                                     }`}
                             >
                                 {i < step ? <Check size={14} /> : i + 1}
@@ -131,8 +139,8 @@ export default function SignupPage() {
                                     key={plan.id}
                                     onClick={() => update("plan", plan.id)}
                                     className={`w-full p-5 rounded-xl border-2 text-left transition-all ${form.plan === plan.id
-                                            ? "border-primary bg-primary/[0.03] shadow-md"
-                                            : "border-border-light hover:border-border"
+                                        ? "border-primary bg-primary/[0.03] shadow-md"
+                                        : "border-border-light hover:border-border"
                                         }`}
                                 >
                                     <div className="flex items-center justify-between mb-0.5">

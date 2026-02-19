@@ -227,6 +227,7 @@ export const ALL_MODULES = [
     { id: "activity", name: "Activity Log", icon: "Activity" },
     { id: "reports", name: "Export & Reports", icon: "FileDown" },
     { id: "team", name: "Team Management", icon: "UsersRound" },
+    { id: "settings", name: "Settings", icon: "Settings" },
 ];
 
 export const ROLES = [

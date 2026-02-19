@@ -15,19 +15,22 @@ export default function LoginPage() {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
         setLoading(true);
-        setTimeout(() => {
-            const res = login(email, password);
+        try {
+            const res = await login(email, password);
             if (res.success) {
                 router.push("/dashboard");
             } else {
-                setError(res.error);
+                setError(res.error || "Login failed");
             }
+        } catch (err) {
+            setError("An unexpected error occurred");
+        } finally {
             setLoading(false);
-        }, 600);
+        }
     };
 
     return (
