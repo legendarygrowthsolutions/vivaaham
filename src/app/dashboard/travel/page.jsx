@@ -52,9 +52,14 @@ export default function TravelPage() {
                     </h2>
                     <p className="text-sm text-text-muted mt-0.5">Manage outstation guest arrivals, pickups, and shuttles</p>
                 </div>
-                <button onClick={handleAdd} className="btn-gradient px-5 py-2.5 rounded-lg text-sm font-semibold inline-flex items-center gap-2 self-start">
-                    <Plus size={16} /> Add Arrival
-                </button>
+                <div className="flex gap-3 self-start">
+                    <button onClick={() => alert("This would send a WhatsApp/SMS link to the guest to fill their travel details via the Guest Portal.")} className="btn-secondary px-4 py-2 text-sm font-semibold inline-flex items-center gap-2">
+                        Request Details
+                    </button>
+                    <button onClick={handleAdd} className="btn-gradient px-4 py-2 text-sm font-semibold inline-flex items-center gap-2">
+                        <Plus size={16} /> Add Arrival
+                    </button>
+                </div>
             </div>
 
             <div className="bg-bg-card rounded-xl border border-border-light overflow-hidden">
@@ -62,7 +67,7 @@ export default function TravelPage() {
                     <table className="w-full text-sm">
                         <thead>
                             <tr>
-                                {["Guest", "Arriving", "Mode", "Pickup", "Details", "Actions"].map((h) => (
+                                {["Guest", "Arrival", "Departure", "Mode", "Pickup/Drop", "Details", "Actions"].map((h) => (
                                     <th key={h} className="text-left px-4 py-3 bg-bg-alt text-text-muted font-semibold text-xs uppercase tracking-wider">{h}</th>
                                 ))}
                             </tr>
@@ -70,29 +75,59 @@ export default function TravelPage() {
                         <tbody className="divide-y divide-border-light">
                             {travelPlans.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className="px-4 py-8 text-center text-text-muted">
+                                    <td colSpan="7" className="px-4 py-8 text-center text-text-muted">
                                         No travel plans added yet.
                                     </td>
                                 </tr>
                             ) : (
                                 travelPlans.map((t) => (
                                     <tr key={t.id} className="hover:bg-bg-alt/50 group">
-                                        <td className="px-4 py-3 font-medium">
+                                        <td className="px-4 py-3 font-medium min-w-[150px]">
                                             <div className="flex flex-col">
                                                 <span>{t.guestName}</span>
                                                 {t.guestPhone && <span className="text-xs text-text-muted opacity-80">{t.guestPhone}</span>}
                                             </div>
                                         </td>
-                                        <td className="px-4 py-3 text-text-muted">
-                                            <div className="flex items-center gap-1.5">
-                                                <Clock size={14} className="text-primary/70" />
-                                                {t.arrival_datetime ? new Date(t.arrival_datetime).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'TBD'}
+                                        <td className="px-4 py-3 text-sm min-w-[140px]">
+                                            <div className="flex flex-col gap-1">
+                                                {t.arrival_datetime ? (
+                                                    <span className="flex items-center gap-1.5 text-text">
+                                                        <Clock size={13} className="text-primary/70" />
+                                                        {new Date(t.arrival_datetime).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                                                    </span>
+                                                ) : <span className="text-text-muted text-xs italic">TBD</span>}
+                                                <span className="text-xs text-text-muted truncate max-w-[150px]" title={t.details}>{t.details || t.mode}</span>
                                             </div>
                                         </td>
-                                        <td className="px-4 py-3 text-text-muted">{t.mode}</td>
-                                        <td className="px-4 py-3">{pickupBadge(t.pickup_status)}</td>
-                                        <td className="px-4 py-3 text-text-muted max-w-[200px] truncate" title={t.details}>
-                                            {t.details || '-'}
+                                        <td className="px-4 py-3 text-sm min-w-[140px]">
+                                            <div className="flex flex-col gap-1">
+                                                {t.departure_datetime ? (
+                                                    <span className="flex items-center gap-1.5 text-text">
+                                                        <Clock size={13} className="text-danger/70" />
+                                                        {new Date(t.departure_datetime).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                                                    </span>
+                                                ) : <span className="text-text-muted text-xs italic">TBD</span>}
+                                                <span className="text-xs text-text-muted truncate max-w-[150px]" title={t.departure_details}>{t.departure_details || t.departure_mode || '-'}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3 text-text-muted min-w-[80px]">
+                                            <div className="flex flex-col gap-1 text-xs">
+                                                <span>Arr: {t.mode}</span>
+                                                {t.departure_mode && <span>Dep: {t.departure_mode}</span>}
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3 min-w-[120px]">
+                                            <div className="flex flex-col gap-1">
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <span className="text-text-muted pr-1">P:</span> {pickupBadge(t.pickup_status)}
+                                                </div>
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <span className="text-text-muted pr-1">D:</span> {pickupBadge(t.drop_status)}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3 text-text-muted text-xs max-w-[150px] truncate" title={t.vehicle_details || '-'}>
+                                            {t.vehicle_details || '-'}
                                         </td>
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

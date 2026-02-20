@@ -93,6 +93,33 @@ export default function GuestModal({ isOpen, onClose, onSave, initialData, event
                         />
                     </div>
 
+                    {/* Guest Classification */}
+                    <div className="mb-4">
+                        <label className="block text-sm font-medium text-text-muted mb-2">Guest Type</label>
+                        <div className="flex gap-4">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="guestType"
+                                    checked={formData.count === 1}
+                                    onChange={() => setFormData((prev) => ({ ...prev, count: 1 }))}
+                                    className="accent-primary"
+                                />
+                                <span className="text-sm">Single Guest</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="guestType"
+                                    checked={formData.count > 1}
+                                    onChange={() => setFormData((prev) => ({ ...prev, count: Math.max(2, prev.count) }))}
+                                    className="accent-primary"
+                                />
+                                <span className="text-sm">Family / Group POC</span>
+                            </label>
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-text-muted mb-1">Side</label>
@@ -119,18 +146,21 @@ export default function GuestModal({ isOpen, onClose, onSave, initialData, event
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-text-muted mb-1">Total Count</label>
-                            <input
-                                type="number"
-                                min="1"
-                                value={formData.count}
-                                onChange={e => setFormData({ ...formData, count: parseInt(e.target.value) || 1 })}
-                                className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                            />
-                        </div>
-                        <div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {formData.count > 1 && (
+                            <div className="animate-[fadeIn_0.2s_ease]">
+                                <label className="block text-sm font-medium text-text-muted mb-1">Total Party Size</label>
+                                <input
+                                    type="number"
+                                    min="2"
+                                    value={formData.count}
+                                    onChange={e => setFormData({ ...formData, count: parseInt(e.target.value) || 2 })}
+                                    className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                />
+                                <p className="text-[10px] text-text-muted mt-1">Including the primary contact.</p>
+                            </div>
+                        )}
+                        <div className={formData.count === 1 ? 'col-span-2' : ''}>
                             <label className="block text-sm font-medium text-text-muted mb-1">Phone (Optional)</label>
                             <input
                                 type="tel"
@@ -159,8 +189,8 @@ export default function GuestModal({ isOpen, onClose, onSave, initialData, event
                             {events.map((event) => (
                                 <label key={event.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-bg-alt p-1 rounded">
                                     <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${formData.selectedEvents.includes(event.id)
-                                            ? "bg-primary border-primary text-white"
-                                            : "border-text-muted/40"
+                                        ? "bg-primary border-primary text-white"
+                                        : "border-text-muted/40"
                                         }`}>
                                         {formData.selectedEvents.includes(event.id) && <Check size={12} />}
                                     </div>

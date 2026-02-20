@@ -10,7 +10,12 @@ export default function TravelModal({ isOpen, onClose, onSave, initialData, gues
         arrivalDatetime: "",
         mode: "Flight",
         details: "",
-        pickupStatus: "pending"
+        pickupStatus: "pending",
+        departureDatetime: "",
+        departureMode: "Flight",
+        departureDetails: "",
+        vehicleDetails: "",
+        dropStatus: "not_needed"
     });
     const [saving, setSaving] = useState(false);
 
@@ -22,7 +27,12 @@ export default function TravelModal({ isOpen, onClose, onSave, initialData, gues
                     arrivalDatetime: initialData.arrival_datetime ? new Date(initialData.arrival_datetime).toISOString().slice(0, 16) : "",
                     mode: initialData.mode || "Flight",
                     details: initialData.details || "",
-                    pickupStatus: initialData.pickup_status || "pending"
+                    pickupStatus: initialData.pickup_status || "pending",
+                    departureDatetime: initialData.departure_datetime ? new Date(initialData.departure_datetime).toISOString().slice(0, 16) : "",
+                    departureMode: initialData.departure_mode || "Flight",
+                    departureDetails: initialData.departure_details || "",
+                    vehicleDetails: initialData.vehicle_details || "",
+                    dropStatus: initialData.drop_status || "not_needed"
                 });
             } else {
                 setFormData({
@@ -30,7 +40,12 @@ export default function TravelModal({ isOpen, onClose, onSave, initialData, gues
                     arrivalDatetime: "",
                     mode: "Flight",
                     details: "",
-                    pickupStatus: "pending"
+                    pickupStatus: "pending",
+                    departureDatetime: "",
+                    departureMode: "Flight",
+                    departureDetails: "",
+                    vehicleDetails: "",
+                    dropStatus: "not_needed"
                 });
             }
         }
@@ -83,55 +98,126 @@ export default function TravelModal({ isOpen, onClose, onSave, initialData, gues
                         </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-text-muted mb-1">Arrival Date & Time <span className="text-danger">*</span></label>
-                        <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"><Clock size={14} /></span>
+                    <div className="space-y-4">
+                        <h4 className="font-semibold text-primary pb-1 border-b border-border/50">Arrival Details</h4>
+
+                        <div>
+                            <label className="block text-sm font-medium text-text-muted mb-1">Arrival Date & Time <span className="text-danger">*</span></label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"><Clock size={14} /></span>
+                                <input
+                                    required
+                                    type="datetime-local"
+                                    value={formData.arrivalDatetime}
+                                    onChange={e => setFormData({ ...formData, arrivalDatetime: e.target.value })}
+                                    className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-bg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-text-muted mb-1">Mode</label>
+                                <select
+                                    value={formData.mode}
+                                    onChange={e => setFormData({ ...formData, mode: e.target.value })}
+                                    className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                >
+                                    <option value="Flight">Flight ✈️</option>
+                                    <option value="Train">Train 🚆</option>
+                                    <option value="Bus">Bus 🚌</option>
+                                    <option value="Car">Car 🚗</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-text-muted mb-1">Pickup Required?</label>
+                                <select
+                                    value={formData.pickupStatus}
+                                    onChange={e => setFormData({ ...formData, pickupStatus: e.target.value })}
+                                    className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                >
+                                    <option value="pending">Pending</option>
+                                    <option value="arranged">Arranged</option>
+                                    <option value="not_needed">Not Needed</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-text-muted mb-1">Arrival Details (Flight/Train No.)</label>
                             <input
-                                required
-                                type="datetime-local"
-                                value={formData.arrivalDatetime}
-                                onChange={e => setFormData({ ...formData, arrivalDatetime: e.target.value })}
-                                className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-bg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                type="text"
+                                value={formData.details}
+                                onChange={e => setFormData({ ...formData, details: e.target.value })}
+                                placeholder="e.g. 6E 5022 from Mumbai"
+                                className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                             />
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-4 pt-4 border-t border-border-light">
+                        <h4 className="font-semibold text-primary pb-1 border-b border-border/50">Departure Details</h4>
+
                         <div>
-                            <label className="block text-sm font-medium text-text-muted mb-1">Mode</label>
-                            <select
-                                value={formData.mode}
-                                onChange={e => setFormData({ ...formData, mode: e.target.value })}
-                                className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                            >
-                                <option value="Flight">Flight ✈️</option>
-                                <option value="Train">Train 🚆</option>
-                                <option value="Bus">Bus 🚌</option>
-                                <option value="Car">Car 🚗</option>
-                            </select>
+                            <label className="block text-sm font-medium text-text-muted mb-1">Departure Date & Time</label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"><Clock size={14} /></span>
+                                <input
+                                    type="datetime-local"
+                                    value={formData.departureDatetime}
+                                    onChange={e => setFormData({ ...formData, departureDatetime: e.target.value })}
+                                    className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-bg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                />
+                            </div>
                         </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-text-muted mb-1">Mode</label>
+                                <select
+                                    value={formData.departureMode}
+                                    onChange={e => setFormData({ ...formData, departureMode: e.target.value })}
+                                    className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                >
+                                    <option value="Flight">Flight ✈️</option>
+                                    <option value="Train">Train 🚆</option>
+                                    <option value="Bus">Bus 🚌</option>
+                                    <option value="Car">Car 🚗</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-text-muted mb-1">Drop Required?</label>
+                                <select
+                                    value={formData.dropStatus}
+                                    onChange={e => setFormData({ ...formData, dropStatus: e.target.value })}
+                                    className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                >
+                                    <option value="pending">Pending</option>
+                                    <option value="arranged">Arranged</option>
+                                    <option value="not_needed">Not Needed</option>
+                                </select>
+                            </div>
+                        </div>
+
                         <div>
-                            <label className="block text-sm font-medium text-text-muted mb-1">Pickup Status</label>
-                            <select
-                                value={formData.pickupStatus}
-                                onChange={e => setFormData({ ...formData, pickupStatus: e.target.value })}
+                            <label className="block text-sm font-medium text-text-muted mb-1">Departure Details</label>
+                            <input
+                                type="text"
+                                value={formData.departureDetails}
+                                onChange={e => setFormData({ ...formData, departureDetails: e.target.value })}
+                                placeholder="e.g. AI 802 to Delhi"
                                 className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                            >
-                                <option value="pending">Pending</option>
-                                <option value="arranged">Arranged</option>
-                                <option value="not_needed">Not Needed</option>
-                            </select>
+                            />
                         </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-text-muted mb-1">Details (Flight/Train No.)</label>
+                    <div className="pt-4 border-t border-border-light">
+                        <label className="block text-sm font-medium text-text-muted mb-1">General Vehicle Info (Optional)</label>
                         <input
                             type="text"
-                            value={formData.details}
-                            onChange={e => setFormData({ ...formData, details: e.target.value })}
-                            placeholder="e.g. 6E 5022 from Mumbai"
+                            value={formData.vehicleDetails}
+                            onChange={e => setFormData({ ...formData, vehicleDetails: e.target.value })}
+                            placeholder="e.g. Personal Car DL 8C 1234"
                             className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                         />
                     </div>

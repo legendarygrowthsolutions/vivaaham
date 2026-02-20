@@ -72,10 +72,15 @@ export function useTravel() {
                 .insert({
                     wedding_id: user.weddingId,
                     guest_id: planData.guestId,
-                    arrival_datetime: planData.arrivalDatetime,
+                    arrival_datetime: planData.arrivalDatetime || null,
                     mode: planData.mode,
                     details: planData.details,
-                    pickup_status: planData.pickupStatus
+                    pickup_status: planData.pickupStatus,
+                    departure_datetime: planData.departureDatetime || null,
+                    departure_mode: planData.departureMode || null,
+                    departure_details: planData.departureDetails || null,
+                    vehicle_details: planData.vehicleDetails || null,
+                    drop_status: planData.dropStatus || 'not_needed'
                 })
                 .select()
                 .single();
@@ -86,7 +91,7 @@ export function useTravel() {
             await logActivity({
                 action: "created",
                 entityType: "Travel Plan",
-                entityName: planData.mode,
+                entityName: planData.guestName || "Guest",
                 details: { arrival: planData.arrivalDatetime }
             });
 
@@ -104,10 +109,15 @@ export function useTravel() {
                 .from('travel_plans')
                 .update({
                     guest_id: updates.guestId,
-                    arrival_datetime: updates.arrivalDatetime,
+                    arrival_datetime: updates.arrivalDatetime || null,
                     mode: updates.mode,
                     details: updates.details,
-                    pickup_status: updates.pickupStatus
+                    pickup_status: updates.pickupStatus,
+                    departure_datetime: updates.departureDatetime || null,
+                    departure_mode: updates.departureMode || null,
+                    departure_details: updates.departureDetails || null,
+                    vehicle_details: updates.vehicleDetails || null,
+                    drop_status: updates.dropStatus || 'not_needed'
                 })
                 .eq('id', id)
                 .select()

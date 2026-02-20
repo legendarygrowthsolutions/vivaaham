@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Calendar, MapPin, CheckCircle, XCircle, Clock, Utensils, Users, LogOut, Loader2 } from "lucide-react";
+import { Calendar, MapPin, CheckCircle, XCircle, Clock, Utensils, Users, LogOut, Loader2, Plane } from "lucide-react";
 import { format } from "date-fns";
 
 export default function GuestDashboard() {
@@ -15,11 +15,21 @@ export default function GuestDashboard() {
     const [loading, setLoading] = useState(true);
     const [rsvpModalOpen, setRsvpModalOpen] = useState(false);
 
-    // RSVP Form State
-    const [rsvpStatus, setRsvpStatus] = useState("accepted");
-    const [guestCount, setGuestCount] = useState(1);
-    const [dietaryNotes, setDietaryNotes] = useState("");
-    const [saving, setSaving] = useState(false);
+    // Travel Form State
+    const [travelPlan, setTravelPlan] = useState(null);
+    const [travelModalOpen, setTravelModalOpen] = useState(false);
+    const [travelData, setTravelData] = useState({
+        arrivalDatetime: "",
+        mode: "Flight",
+        details: "",
+        pickupStatus: "not_needed",
+        departureDatetime: "",
+        departureMode: "Flight",
+        departureDetails: "",
+        vehicleDetails: "",
+        dropStatus: "not_needed"
+    });
+    const [savingTravel, setSavingTravel] = useState(false);
 
     const supabase = createClient();
 
@@ -80,6 +90,28 @@ export default function GuestDashboard() {
 
             setEvents(myEvents);
 
+            // 4. Fetch Travel Plans
+            const { data: travelCheck, error: travelCheckError } = await supabase
+                .from('travel_plans')
+                .select('*')
+                .eq('guest_id', guestId)
+                .maybeSingle();
+
+            if (!travelCheckError && travelCheck) {
+                setTravelPlan(travelCheck);
+                setTravelData({
+                    arrivalDatetime: travelCheck.arrival_datetime ? new Date(travelCheck.arrival_datetime).toISOString().slice(0, 16) : "",
+                    mode: travelCheck.mode || "Flight",
+                    details: travelCheck.details || "",
+                    pickupStatus: travelCheck.pickup_status || "not_needed",
+                    departureDatetime: travelCheck.departure_datetime ? new Date(travelCheck.departure_datetime).toISOString().slice(0, 16) : "",
+                    departureMode: travelCheck.departure_mode || "Flight",
+                    departureDetails: travelCheck.departure_details || "",
+                    vehicleDetails: travelCheck.vehicle_details || "",
+                    dropStatus: travelCheck.drop_status || "not_needed"
+                });
+            }
+
         } catch (err) {
             console.error("Error loading portal:", err);
             // alert("Failed to load data");
@@ -116,6 +148,55 @@ export default function GuestDashboard() {
             alert("Failed to update RSVP");
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleTravelUpdate = async (e) => {
+        e.preventDefault();
+        setSavingTravel(true);
+        try {
+            const payload = {
+                wedding_id: wedding.id,
+                guest_id: guest.id,
+                arrival_datetime: travelData.arrivalDatetime || null,
+                mode: travelData.mode,
+                details: travelData.details,
+                pickup_status: travelData.pickupStatus,
+                departure_datetime: travelData.departureDatetime || null,
+                departure_mode: travelData.departureMode,
+                departure_details: travelData.departureDetails,
+                vehicle_details: travelData.vehicleDetails,
+                drop_status: travelData.dropStatus
+            };
+
+            let updatedTravel;
+            if (travelPlan) {
+                const { data, error } = await supabase
+                    .from('travel_plans')
+                    .update(payload)
+                    .eq('id', travelPlan.id)
+                    .select()
+                    .single();
+                if (error) throw error;
+                updatedTravel = data;
+            } else {
+                const { data, error } = await supabase
+                    .from('travel_plans')
+                    .insert(payload)
+                    .select()
+                    .single();
+                if (error) throw error;
+                updatedTravel = data;
+            }
+
+            setTravelPlan(updatedTravel);
+            setTravelModalOpen(false);
+            alert("Travel Details Saved Successfully!");
+        } catch (err) {
+            console.error("Travel Error:", err);
+            alert("Failed to save travel details.");
+        } finally {
+            setSavingTravel(false);
         }
     };
 
@@ -165,8 +246,8 @@ export default function GuestDashboard() {
                         </div>
                         <div className="flex items-center gap-3">
                             <div className={`px-4 py-1.5 rounded-full text-sm font-semibold capitalize border ${guest.rsvp === 'accepted' ? 'bg-success/10 text-success border-success/20' :
-                                    guest.rsvp === 'declined' ? 'bg-danger/10 text-danger border-danger/20' :
-                                        'bg-accent/10 text-accent border-accent/20'
+                                guest.rsvp === 'declined' ? 'bg-danger/10 text-danger border-danger/20' :
+                                    'bg-accent/10 text-accent border-accent/20'
                                 }`}>
                                 {guest.rsvp}
                             </div>
@@ -226,7 +307,7 @@ export default function GuestDashboard() {
 
                 {/* Dietary Notes Display if any */}
                 {guest.dietary_notes && (
-                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-5 flex gap-3 text-indigo-900">
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-5 flex gap-3 text-indigo-900 animate-[fadeInUp_0.5s_ease] delay-100">
                         <Utensils size={20} className="shrink-0 mt-0.5" />
                         <div>
                             <h4 className="font-semibold text-sm">Dietary Preferences</h4>
@@ -234,6 +315,85 @@ export default function GuestDashboard() {
                         </div>
                     </div>
                 )}
+
+                {/* Travel Information */}
+                <div className="bg-bg-card border border-border-light rounded-2xl shadow-lg p-6 md:p-8 animate-[fadeInUp_0.5s_ease] delay-200">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                        <div>
+                            <h2 className="text-xl font-semibold mb-1 flex items-center gap-2">
+                                <Plane size={20} className="text-primary" /> Travel Logistics
+                            </h2>
+                            <p className="text-text-muted text-sm">Share your travel plans for pickups and drops.</p>
+                        </div>
+                        <button
+                            onClick={() => setTravelModalOpen(true)}
+                            className="btn-secondary px-5 py-2 rounded-lg text-sm font-semibold transition-all"
+                        >
+                            {travelPlan ? 'Update Details' : 'Add Details'}
+                        </button>
+                    </div>
+
+                    {travelPlan ? (
+                        <div className="grid md:grid-cols-2 gap-4">
+                            {/* Arrival Box */}
+                            <div className="bg-bg-alt/50 rounded-xl p-4 border border-border">
+                                <h4 className="font-semibold text-sm text-text-muted mb-3 flex items-center justify-between">
+                                    <span>Arrival</span>
+                                    <span className="text-xs bg-bg px-2 py-1 rounded-md border border-border capitalize">{travelPlan.mode}</span>
+                                </h4>
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-text-muted">Time:</span>
+                                        <span className="font-medium text-right">
+                                            {travelPlan.arrival_datetime ? format(new Date(travelPlan.arrival_datetime), 'MMM d, h:mm a') : 'TBD'}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-text-muted">Details:</span>
+                                        <span className="font-medium text-right">{travelPlan.details || '-'}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-text-muted">Pickup:</span>
+                                        <span className={`font-medium text-right capitalize ${travelPlan.pickup_status === 'arranged' ? 'text-success' : 'text-accent'}`}>
+                                            {travelPlan.pickup_status.replace('_', ' ')}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Departure Box */}
+                            <div className="bg-bg-alt/50 rounded-xl p-4 border border-border">
+                                <h4 className="font-semibold text-sm text-text-muted mb-3 flex items-center justify-between">
+                                    <span>Departure</span>
+                                    <span className="text-xs bg-bg px-2 py-1 rounded-md border border-border capitalize">{travelPlan.departure_mode || '-'}</span>
+                                </h4>
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-text-muted">Time:</span>
+                                        <span className="font-medium text-right">
+                                            {travelPlan.departure_datetime ? format(new Date(travelPlan.departure_datetime), 'MMM d, h:mm a') : 'TBD'}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-text-muted">Details:</span>
+                                        <span className="font-medium text-right">{travelPlan.departure_details || '-'}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-text-muted">Drop:</span>
+                                        <span className={`font-medium text-right capitalize ${travelPlan.drop_status === 'arranged' ? 'text-success' : 'text-accent'}`}>
+                                            {travelPlan.drop_status?.replace('_', ' ') || '-'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-center p-6 bg-bg-alt/30 rounded-xl border border-dashed border-border text-text-muted">
+                            <Plane size={32} className="mx-auto mb-2 opacity-20" />
+                            <p className="text-sm">No travel details provided yet.</p>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* RSVP Modal */}
@@ -248,14 +408,16 @@ export default function GuestDashboard() {
                         <div className="p-6 space-y-6">
                             {/* Attendance */}
                             <div>
-                                <label className="block text-sm font-medium mb-3">Will you be attending?</label>
+                                <label className="block text-sm font-medium mb-3">
+                                    {guest.count > 1 ? "Will your party be attending?" : "Will you be attending?"}
+                                </label>
                                 <div className="grid grid-cols-2 gap-4">
                                     <button
                                         type="button"
                                         onClick={() => setRsvpStatus('accepted')}
                                         className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${rsvpStatus === 'accepted'
-                                                ? 'border-success bg-success/5 text-success'
-                                                : 'border-border-light hover:border-border text-text-muted'
+                                            ? 'border-success bg-success/5 text-success'
+                                            : 'border-border-light hover:border-border text-text-muted'
                                             }`}
                                     >
                                         <CheckCircle size={24} />
@@ -266,8 +428,8 @@ export default function GuestDashboard() {
                                         type="button"
                                         onClick={() => setRsvpStatus('declined')}
                                         className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${rsvpStatus === 'declined'
-                                                ? 'border-danger bg-danger/5 text-danger'
-                                                : 'border-border-light hover:border-border text-text-muted'
+                                            ? 'border-danger bg-danger/5 text-danger'
+                                            : 'border-border-light hover:border-border text-text-muted'
                                             }`}
                                     >
                                         <XCircle size={24} />
@@ -324,6 +486,148 @@ export default function GuestDashboard() {
                                 className="btn-gradient px-6 py-2.5 rounded-lg text-sm font-semibold shadow-lg shadow-primary/20"
                             >
                                 {saving ? <Loader2 className="animate-spin" /> : "Confirm RSVP"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Travel Details Modal */}
+            {travelModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-[fadeIn_0.2s_ease]">
+                    <div className="bg-bg-card w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-[scaleIn_0.3s_ease] flex flex-col max-h-[90vh]">
+                        <div className="p-4 md:p-6 border-b border-border-light shrink-0">
+                            <h3 className="font-heading text-xl font-semibold">Travel Details</h3>
+                            <p className="text-sm text-text-muted mt-1">Provide your arrival and departure information</p>
+                        </div>
+
+                        <div className="p-4 md:p-6 overflow-y-auto space-y-6 flex-1 custom-scrollbar">
+                            {/* Arrival Section */}
+                            <div className="space-y-4">
+                                <h4 className="font-semibold text-primary pb-1 border-b border-border/50 text-sm uppercase tracking-wider">Arrival Info</h4>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Arrival Date & Time</label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"><Clock size={14} /></span>
+                                        <input
+                                            type="datetime-local"
+                                            value={travelData.arrivalDatetime}
+                                            onChange={e => setTravelData({ ...travelData, arrivalDatetime: e.target.value })}
+                                            className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-border bg-bg text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Mode</label>
+                                        <select
+                                            value={travelData.mode}
+                                            onChange={e => setTravelData({ ...travelData, mode: e.target.value })}
+                                            className="w-full px-3 py-2.5 rounded-lg border border-border bg-bg text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                        >
+                                            <option value="Flight">Flight ✈️</option>
+                                            <option value="Train">Train 🚆</option>
+                                            <option value="Bus">Bus 🚌</option>
+                                            <option value="Car">Car 🚗</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Need Pickup?</label>
+                                        <select
+                                            value={travelData.pickupStatus}
+                                            onChange={e => setTravelData({ ...travelData, pickupStatus: e.target.value })}
+                                            className="w-full px-3 py-2.5 rounded-lg border border-border bg-bg text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                        >
+                                            <option value="not_needed">No Thanks</option>
+                                            <option value="pending">Yes Please</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Flight/Train Number</label>
+                                    <input
+                                        type="text"
+                                        value={travelData.details}
+                                        onChange={e => setTravelData({ ...travelData, details: e.target.value })}
+                                        placeholder="e.g. 6E 1234 from Mumbai"
+                                        className="w-full px-3 py-2.5 rounded-lg border border-border bg-bg text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Departure Section */}
+                            <div className="space-y-4 pt-4 border-t border-border-light">
+                                <h4 className="font-semibold text-primary pb-1 border-b border-border/50 text-sm uppercase tracking-wider">Departure Info</h4>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Departure Date & Time</label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"><Clock size={14} /></span>
+                                        <input
+                                            type="datetime-local"
+                                            value={travelData.departureDatetime}
+                                            onChange={e => setTravelData({ ...travelData, departureDatetime: e.target.value })}
+                                            className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-border bg-bg text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Mode</label>
+                                        <select
+                                            value={travelData.departureMode}
+                                            onChange={e => setTravelData({ ...travelData, departureMode: e.target.value })}
+                                            className="w-full px-3 py-2.5 rounded-lg border border-border bg-bg text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                        >
+                                            <option value="Flight">Flight ✈️</option>
+                                            <option value="Train">Train 🚆</option>
+                                            <option value="Bus">Bus 🚌</option>
+                                            <option value="Car">Car 🚗</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Need Drop?</label>
+                                        <select
+                                            value={travelData.dropStatus}
+                                            onChange={e => setTravelData({ ...travelData, dropStatus: e.target.value })}
+                                            className="w-full px-3 py-2.5 rounded-lg border border-border bg-bg text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                        >
+                                            <option value="not_needed">No Thanks</option>
+                                            <option value="pending">Yes Please</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Flight/Train Number</label>
+                                    <input
+                                        type="text"
+                                        value={travelData.departureDetails}
+                                        onChange={e => setTravelData({ ...travelData, departureDetails: e.target.value })}
+                                        placeholder="e.g. AI 802 to Delhi"
+                                        className="w-full px-3 py-2.5 rounded-lg border border-border bg-bg text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-bg-alt flex justify-end gap-3 shrink-0 rounded-b-2xl border-t border-border-light">
+                            <button
+                                onClick={() => setTravelModalOpen(false)}
+                                className="px-5 py-2.5 rounded-lg border border-border bg-bg text-sm font-medium hover:bg-white transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleTravelUpdate}
+                                disabled={savingTravel}
+                                className="btn-gradient px-6 py-2.5 rounded-lg text-sm font-semibold shadow-lg shadow-primary/20"
+                            >
+                                {savingTravel ? <Loader2 className="animate-spin" /> : "Save Details"}
                             </button>
                         </div>
                     </div>

@@ -4,7 +4,8 @@
 import { useState } from "react";
 import { useVendors } from "@/hooks/useVendors";
 import VendorModal from "@/components/vendors/VendorModal";
-import { Handshake, Plus, Star, Phone, IndianRupee, Search, Edit, Trash2, Mail } from "lucide-react";
+import { Handshake, Plus, Star, Phone, IndianRupee, Search, Edit, Trash2, Mail, Store } from "lucide-react";
+import Link from "next/link";
 
 export default function VendorsPage() {
     const { vendors, loading, addVendor, updateVendor, deleteVendor } = useVendors();
@@ -66,9 +67,14 @@ export default function VendorsPage() {
                     </h2>
                     <p className="text-sm text-text-muted mt-0.5">Track vendors, contracts, and payment statuses</p>
                 </div>
-                <button onClick={handleAdd} className="btn-gradient px-5 py-2.5 rounded-lg text-sm font-semibold inline-flex items-center gap-2 self-start">
-                    <Plus size={16} /> Add Vendor
-                </button>
+                <div className="flex gap-3 self-start">
+                    <Link href="/dashboard/vendors/marketplace" className="btn-secondary px-4 py-2 text-sm font-semibold inline-flex items-center gap-2">
+                        <Store size={16} /> Browse Marketplace
+                    </Link>
+                    <button onClick={handleAdd} className="btn-gradient px-4 py-2 text-sm font-semibold inline-flex items-center gap-2">
+                        <Plus size={16} /> Add Vendor
+                    </button>
+                </div>
             </div>
 
             {/* Toolbar */}
